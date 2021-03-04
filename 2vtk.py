@@ -13,9 +13,8 @@ def main(model, start=1, end=-1):
     os.chdir(model)
 
     for i in range(start, end+1):
-        x, z = read_mesh(i)
-        nx = len(x)
-        nz = len(z)
+        nx = 512#len(x)
+        nz = 128#len(z)
 
         print('Writing record #%03d' % i, end='\r')
         #sys.stdout.flush()
@@ -33,7 +32,7 @@ def main(model, start=1, end=-1):
 
         # coordinate
         x, z = read_mesh(i)
-        tmp = np.zeros((nx, nz, 3),dtype=x.dtype)
+        tmp = np.zeros((nx*nz,1,3),dtype=x.dtype)
         tmp[:,:,0] = x
         tmp[:,:,1] = z
         fvts.write('  <Points>\n')
@@ -48,11 +47,14 @@ def main(model, start=1, end=-1):
 
 def read_temperature(i):
     temp = np.loadtxt('f%03d' % i, usecols=2, unpack=True)
+    temp=temp.reshape((len(temp),1))
     #temp = np.fromfile('f%03d' % i, sep=' ')
     return temp
 
 def read_mesh(i):
     x,z = np.loadtxt('f%03d' % i, usecols=[0, 1], unpack=True)
+    x=x.reshape((len(x),1))
+    z=z.reshape((len(z),1))
     return x,z
 
 def vts_dataarray(f, data, data_name=None, data_comps=None):
