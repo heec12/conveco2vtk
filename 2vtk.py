@@ -9,7 +9,7 @@ temp=[]
 
 def main(model, start=1, end=-1):
 
-    # changing directory
+    # Changing directory
     os.chdir(model)
 
     for i in range(start, end+1):
@@ -21,17 +21,39 @@ def main(model, start=1, end=-1):
         fvts = open('f%03d.vts' % i, 'w')
         vts_header(fvts, nx, nz)
 
-        # temperature field
+        # Read ffile, tfile, and wfile
+        x,z,temp,alpha,mu = read_ffile(i)
+        #tx,tz,tau,tauxx = read_tfile(i)
+        chem = read_wfile(i)
+
+        # Starting point data fields
         fvts.write('  <PointData>\n')
+        # Temperature field
+        temp = np.transpose(temp)
+        vts_dataarray(fvts, temp, 'Temperature')
+        #fvts.write('  </PointData>\n')
 
-        a = read_temperature(i)
-        a = np.transpose(a)
-        vts_dataarray(fvts, a, 'Temperature')
+        # Fineness field
+        #fvts.write('  <PointData>\n')
+        alpha = np.transpose(alpha)
+        vts_dataarray(fvts, alpha, 'Fineness')
+        #fvts.write('  </PointData>\n')
 
+        # Viscosity field
+        #fvts.write('  <PointData>\n')
+        mu = np.transpose(mu)
+        vts_dataarray(fvts, mu, 'Viscosity')
+        #fvts.write('  </PointData>\n')
+
+        # Chemical field
+        #fvts.write('  <PointData>\n')
+        chem = np.transpose(chem)
+        vts_dataarray(fvts, chem, 'Chemical')
+        
+        #Ending pointdata fields
         fvts.write('  </PointData>\n')
 
         # coordinate
-        x, z = read_mesh(i)
         tmp = np.zeros((nx*nz,1,3),dtype=x.dtype)
         tmp[:,:,0] = x
         tmp[:,:,1] = z
@@ -45,22 +67,32 @@ def main(model, start=1, end=-1):
     print()
     return
 
-def read_temperature(i):
-    temp = np.loadtxt('f%03d' % i, usecols=2, unpack=True)
-    temp=temp.reshape((len(temp),1))
-    #temp = np.fromfile('f%03d' % i, sep=' ')
-    return temp
-
-def read_mesh(i):
-    x,z = np.loadtxt('f%03d' % i, usecols=[0, 1], unpack=True)
+def read_ffile(i):
+    x,z,temp,alpha,mu = np.loadtxt('f%03d' % i, usecols=[0, 1, 2, 3, 5], unpack=True)
     x=x.reshape((len(x),1))
     z=z.reshape((len(z),1))
-    return x,z
+    temp=temp.reshape((len(temp),1))
+    alpha = alpha.reshape((len(alpha),1))
+    mu = mu.reshape((len(mu),1))
+    return x,z,temp,alpha,mu
+
+def read_tfile(i):
+    tx,tz,tau,tauxx = np.loadtxt('t%03d' % i, usecols=[0, 1, 2, 3], unpack=True)
+    tx=tx.reshape((len(tx),1))
+    tz=tz.reshape((len(tz),1))
+    tau=tau.reshape((len(tau),1))
+    tauxx = tauxx.reshape((len(tauxx),1))
+    return tx,tz,tau,tauxx 
+
+def read_wfile(i):
+    chem = np.loadtxt('w%03d' % i, usecols=3, unpack=True)
+    chem = chem.reshape((len(chem),1))
+    return chem
 
 def vts_dataarray(f, data, data_name=None, data_comps=None):
     if data.dtype in (int, np.int32, np.int_):
         dtype = 'Int32'
-    elif data.dtype in (float, np.single, np.double, np.float,
+    elif data.dtype in (float, np.single, np.double,
                         np.float32, np.float64, np.float128):
         dtype = 'Float32'
     else:
@@ -89,7 +121,7 @@ def vts_header(f, nx, nz):
 <VTKFile type="StructuredGrid" version="0.1" byte_order="LittleEndian">
 <StructuredGrid WholeExtent="0 {0} 0 {1} 0 0">
     <Piece Extent="0 {0} 0 {1} 0 0">
-'''.format(nx, nz))
+'''.format(nx-1, nz-1))
     return
 
 def vts_footer(f):
