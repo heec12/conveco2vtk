@@ -58,7 +58,8 @@ def main(model, start=1, end=-1):
         tmp[:,:,0] = x
         tmp[:,:,1] = z
         fvts.write('  <Points>\n')
-        vts_dataarray(fvts, tmp.swapaxes(0,1), '', 3)
+        #vts_dataarray(fvts, tmp.swapaxes(0,1), '', 3)
+        vts_dataarray(fvts, tmp, '', 3)
         fvts.write('  </Points>\n')
 
 
@@ -68,12 +69,23 @@ def main(model, start=1, end=-1):
     return
 
 def read_ffile(i):
-    x,z,temp,alpha,mu = np.loadtxt('f%03d' % i, usecols=[0, 1, 2, 3, 5], unpack=True)
-    x=x.reshape((len(x),1))
-    z=z.reshape((len(z),1))
-    temp=temp.reshape((len(temp),1))
-    alpha = alpha.reshape((len(alpha),1))
-    mu = mu.reshape((len(mu),1))
+    xraw,zraw,tempraw,alpharaw,muraw = np.loadtxt('f%03d' % i, usecols=[0, 1, 2, 3, 5], unpack=True)
+    xc=xraw[0:-1:128] #x.reshape((len(x),1))
+    zc=zraw[0:128]    #z.reshape((len(z),1))
+    x = np.zeros((len(xraw),1))
+    z = np.zeros((len(zraw),1))
+    temp = np.zeros((len(tempraw),1))
+    alpha = np.zeros((len(alpharaw),1))
+    mu = np.zeros((len(muraw),1))
+    for j in range(128):
+        for i in range(512):
+            norig = j + 128*i
+            n = i + 512*j
+            x[n,0] = xc[i]
+            z[n,0] = zc[j]
+            temp[n,0] = tempraw[norig]
+            alpha[n,0] = alpharaw[norig]
+            mu[n,0] = muraw[norig]
     return x,z,temp,alpha,mu
 
 def read_tfile(i):
