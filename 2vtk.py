@@ -21,34 +21,53 @@ def main(model, start=1, end=-1):
         fvts = open('f%03d.vts' % i, 'w')
         vts_header(fvts, nx, nz)
 
-        # Read ffile, tfile, and wfile
+        # Read ffile, tfile, ufile, and wfile
         x,z,temp,alpha,mu = read_ffile(i)
-        #tx,tz,tau,tauxx = read_tfile(i)
-        chem = read_wfile(i)
+        tau,tauxx,tauxz,tauzz = read_tfile(i)
+        xu,u = read_ufile(i)
+        yw,w,chem = read_wfile(i)
+
+        # Vector components: convert to 3-vector matrix
+        # Tau 
+        stress = np.zeros((nx*nz,1,3),dtype=x.dtype)
+        stress[:,:,0] = tauxx
+        stress[:,:,1] = tauxz
+        stress[:,:,2] = tauzz
+        # Velocity 
+        vel = np.zeros((nx*nz,1,3),dtype=x.dtype)
+        vel[:,:,0] = u
+        vel[:,:,2] = w
 
         # Starting point data fields
         fvts.write('  <PointData>\n')
+        
+        # Velocity field
+        vel = np.transpose(vel)
+        vts_dataarray(fvts, vel, 'Velocity', 3)
+
+        # Stress field
+        stress = np.transpose(stress)
+        vts_dataarray(fvts, stress, 'Stress',3)
+
         # Temperature field
         temp = np.transpose(temp)
         vts_dataarray(fvts, temp, 'Temperature')
-        #fvts.write('  </PointData>\n')
 
         # Fineness field
-        #fvts.write('  <PointData>\n')
         alpha = np.transpose(alpha)
         vts_dataarray(fvts, alpha, 'Fineness')
-        #fvts.write('  </PointData>\n')
 
         # Viscosity field
-        #fvts.write('  <PointData>\n')
         mu = np.transpose(mu)
         vts_dataarray(fvts, mu, 'Viscosity')
-        #fvts.write('  </PointData>\n')
 
         # Chemical field
-        #fvts.write('  <PointData>\n')
         chem = np.transpose(chem)
         vts_dataarray(fvts, chem, 'Chemical')
+
+        # Total stress field
+        chem = np.transpose(tau)
+        vts_dataarray(fvts, tau, 'Total stress')
         
         #Ending pointdata fields
         fvts.write('  </PointData>\n')
@@ -61,7 +80,6 @@ def main(model, start=1, end=-1):
         #vts_dataarray(fvts, tmp.swapaxes(0,1), '', 3)
         vts_dataarray(fvts, tmp, '', 3)
         fvts.write('  </Points>\n')
-
 
         vts_footer(fvts)
         fvts.close()
@@ -89,17 +107,64 @@ def read_ffile(i):
     return x,z,temp,alpha,mu
 
 def read_tfile(i):
-    tx,tz,tau,tauxx = np.loadtxt('t%03d' % i, usecols=[0, 1, 2, 3], unpack=True)
-    tx=tx.reshape((len(tx),1))
-    tz=tz.reshape((len(tz),1))
-    tau=tau.reshape((len(tau),1))
-    tauxx = tauxx.reshape((len(tauxx),1))
-    return tx,tz,tau,tauxx 
+    tauraw,tauxxraw,tauxzraw,tauzzraw = np.loadtxt('t%03d' % i, usecols=[2, 3, 4, 5], unpack=True)
+    tau = np.zeros((len(tauraw),1))
+    tauxx = np.zeros((len(tauxxraw),1))
+    tauxz = np.zeros((len(tauxzraw),1))
+    tauzz = np.zeros((len(tauzzraw),1))
+    for j in range(128):
+        for i in range(512):
+            norig = j + 128*i
+            n = i + 512*j
+            tau[n,0] = tauraw[norig]
+            tauxx[n,0] = tauxxraw[norig]
+            tauxz[n,0] = tauxzraw[norig]
+            tauzz[n,0] = tauzzraw[norig]
+    return tau,tauxx,tauxz,tauzz
+
+def read_ufile(i):
+    xuraw,uraw = np.loadtxt('u%03d' % i, usecols=[1,2], unpack=True)
+    xu_513 = np.zeros((len(xuraw),1))
+    u_513 = np.zeros((len(uraw),1))
+    for j in range(128):
+        for i in range(513):
+            norig = j + 128*i
+            n = i + 513*j
+            xu_513[n,0] = xuraw[norig]
+            u_513[n,0] = uraw[norig]
+    xu = np.zeros((512*128,1))
+    u = np.zeros((512*128,1))
+    for i in range(127):
+        for j in range(0+513*i,513+513*i):
+            #print('j= ',j,', xu_513[j] = ',xu_513[j,0])
+            xu[j,0] = (xu_513[j,0]+xu_513[j+1,0])/2
+            u[j,0] = (u_513[j,0]+u_513[j+1,0])/2     
+    #print(len(xu))
+    return xu,u
 
 def read_wfile(i):
-    chem = np.loadtxt('w%03d' % i, usecols=3, unpack=True)
-    chem = chem.reshape((len(chem),1))
-    return chem
+    ywraw,wraw,chemraw = np.loadtxt('w%03d' % i, usecols=[1,2,3], unpack=True)
+    yw_129 = np.zeros((len(ywraw),1))
+    w_129 = np.zeros((len(wraw),1))
+    chem_129 = np.zeros((len(chemraw),1))
+    for j in range(129):
+        for i in range(512):
+            norig = j + 129*i
+            n = i + 512*j
+            yw_129[n,0] = ywraw[norig]
+            w_129[n,0] = wraw[norig]
+            chem_129[n,0] = chemraw[norig]
+    yw = np.zeros((512*128,1))
+    w = np.zeros((512*128,1))
+    chem = np.zeros((512*128,1))
+    for i in range(128):
+        for j in range(0+512*i,512+512*i):
+            #print('j= ',j,', xu_513[j] = ',xu_513[j,0])
+            yw[j,0] = (yw_129[j,0]+yw_129[j+512,0])/2
+            w[j,0] = (w_129[j,0]+w_129[j+512,0])/2
+            chem[j,0] = (chem_129[j,0]+chem_129[j+512,0])/2
+    #print(len(xu))
+    return yw,w,chem
 
 def vts_dataarray(f, data, data_name=None, data_comps=None):
     if data.dtype in (int, np.int32, np.int_):
