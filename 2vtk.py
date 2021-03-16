@@ -16,9 +16,9 @@ def main(model, start=1, end=-1):
         nx = 512#len(x)
         nz = 128#len(z)
 
-        print('Writing record #%03d' % i, end='\r')
+        print('Writing record #%04d' % i, end='\r')
         #sys.stdout.flush()
-        fvts = open('f%03d.vts' % i, 'w')
+        fvts = open('conveco%04d.vts' % i, 'w')
         vts_header(fvts, nx, nz)
 
         # Read ffile, tfile, ufile, and wfile
@@ -75,7 +75,7 @@ def main(model, start=1, end=-1):
         # coordinate
         tmp = np.zeros((nx*nz,1,3),dtype=x.dtype)
         tmp[:,:,0] = x
-        tmp[:,:,1] = z
+        tmp[:,:,2] = z
         fvts.write('  <Points>\n')
         #vts_dataarray(fvts, tmp.swapaxes(0,1), '', 3)
         vts_dataarray(fvts, tmp, '', 3)
